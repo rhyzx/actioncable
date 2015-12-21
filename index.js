@@ -2,7 +2,6 @@
 
 // umd export
 // https://github.com/umdjs/umd/blob/master/templates/returnExports.js
-var ActionCable = this.ActionCable
 if (typeof define === 'function' && define.amd) {
   // AMD. Register as an anonymous module.
   define([], function () { return ActionCable })
