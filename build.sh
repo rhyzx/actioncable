@@ -5,3 +5,4 @@ bundle exec sprockets \
   -I. \
   -I$(bundle show actioncable)/lib/assets/javascripts \
   index.js.erb > dist/cable.js
+# npm version $(bundle version? actioncable)
