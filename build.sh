@@ -1,8 +1,8 @@
 #!/usr/bin/env sh
 bundle update
 bundle exec sprockets \
-  -r actioncable \
+  -r action_cable \
   -I. \
   -I$(bundle show actioncable)/lib/assets/javascripts \
-  index.js.erb > dist/cable.js
+  index.js > dist/actioncable.js
 # npm version $(bundle version? actioncable)
