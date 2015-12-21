@@ -6,7 +6,7 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "bash build.sh",
-    "prepublish": "npm run build && npm version --force $(bundle exec ruby version.rb)"
+    "autopublish": "npm run build && npm version --force $(bundle exec ruby version.rb) && npm publish"
   },
   "author": "",
   "license": "MIT",
