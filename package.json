@@ -1,0 +1,15 @@
+{
+  "name": "actioncable",
+  "version": "0.1.1",
+  "description": "pre-built for Actioncable client",
+  "main": "dist/cable.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rhyzx/actioncable.git"
+  }
+}
