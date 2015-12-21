@@ -1,6 +1,6 @@
 {
   "name": "actioncable",
-  "version": "0.1.1",
+  "version": "5.0.0-beta1",
   "description": "pre-built for Actioncable client",
   "main": "dist/actioncable.js",
   "scripts": {
