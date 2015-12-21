@@ -4,7 +4,9 @@
   "description": "pre-built for Actioncable client",
   "main": "dist/actioncable.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "bash build.sh",
+    "prepublish": "npm run build && npm version --force $(bundle exec ruby version.rb)"
   },
   "author": "",
   "license": "MIT",
