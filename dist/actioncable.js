@@ -1,3 +1,5 @@
+!function () {
+
 var ActionCable
 (function() {
   ActionCable = {
@@ -544,7 +546,6 @@ var ActionCable
 
 }).call(this);
 
-
 // umd export
 // https://github.com/umdjs/umd/blob/master/templates/returnExports.js
 if (typeof define === 'function' && define.amd) {
@@ -559,3 +560,5 @@ if (typeof define === 'function' && define.amd) {
   // Browser globals (root is window)
   this.ActionCable = ActionCable
 }
+
+}()

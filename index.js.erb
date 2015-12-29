@@ -1,4 +1,9 @@
-//= require action_cable
+!function () {
+
+var ActionCable
+
+// fix scope
+<%= depend_on_asset('action_cable').to_s.sub('this.ActionCable =', 'ActionCable =') %>
 
 // umd export
 // https://github.com/umdjs/umd/blob/master/templates/returnExports.js
@@ -14,3 +19,5 @@ if (typeof define === 'function' && define.amd) {
   // Browser globals (root is window)
   this.ActionCable = ActionCable
 }
+
+}()

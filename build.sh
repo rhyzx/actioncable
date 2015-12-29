@@ -5,4 +5,4 @@ bundle exec sprockets \
   -r action_cable \
   -I. \
   -I$(bundle show actioncable)/lib/assets/javascripts \
-  index.js > dist/actioncable.js
+  index.js.erb > dist/actioncable.js
