@@ -1,7 +1,11 @@
 !function () {
 
 var ActionCable
+
+// fix scope
 (function() {
+  var slice = [].slice;
+
   ActionCable = {
     INTERNAL: {
       "identifiers": {
@@ -34,6 +38,20 @@ var ActionCable
       } else {
         return url;
       }
+    },
+    startDebugging: function() {
+      return this.debugging = true;
+    },
+    stopDebugging: function() {
+      return this.debugging = null;
+    },
+    log: function() {
+      var messages;
+      messages = 1 <= arguments.length ? slice.call(arguments, 0) : [];
+      if (this.debugging) {
+        messages.push(Date.now());
+        return console.log.apply(console, ["[ActionCable]"].concat(slice.call(messages)));
+      }
     }
   };
 
@@ -65,9 +83,14 @@ var ActionCable
     };
 
     Connection.prototype.open = function() {
-      if (this.webSocket && !this.isState("closed")) {
+      if (this.isAlive()) {
+        ActionCable.log("Attemped to open WebSocket, but existing socket is " + (this.getState()));
         throw new Error("Existing connection must be closed before opening");
       } else {
+        ActionCable.log("Opening WebSocket, current state is " + (this.getState()));
+        if (this.webSocket != null) {
+          this.uninstallEventHandlers();
+        }
         this.webSocket = new WebSocket(this.consumer.url);
         this.installEventHandlers();
         return true;
@@ -80,19 +103,29 @@ var ActionCable
     };
 
     Connection.prototype.reopen = function() {
-      if (this.isState("closed")) {
-        return this.open();
-      } else {
+      var error, error1;
+      ActionCable.log("Reopening WebSocket, current state is " + (this.getState()));
+      if (this.isAlive()) {
         try {
           return this.close();
+        } catch (error1) {
+          error = error1;
+          return ActionCable.log("Failed to reopen WebSocket", error);
         } finally {
+          ActionCable.log("Reopening WebSocket in " + this.constructor.reopenDelay + "ms");
           setTimeout(this.open, this.constructor.reopenDelay);
         }
+      } else {
+        return this.open();
       }
     };
 
     Connection.prototype.isOpen = function() {
       return this.isState("open");
+    };
+
+    Connection.prototype.isAlive = function() {
+      return (this.webSocket != null) && !this.isState("closing", "closed");
     };
 
     Connection.prototype.isState = function() {
@@ -120,6 +153,13 @@ var ActionCable
       }
     };
 
+    Connection.prototype.uninstallEventHandlers = function() {
+      var eventName;
+      for (eventName in this.events) {
+        this.webSocket["on" + eventName] = function() {};
+      }
+    };
+
     Connection.prototype.events = {
       message: function(event) {
         var identifier, message, ref, type;
@@ -134,13 +174,16 @@ var ActionCable
         }
       },
       open: function() {
+        ActionCable.log("WebSocket onopen event");
         this.disconnected = false;
         return this.consumer.subscriptions.reload();
       },
       close: function() {
+        ActionCable.log("WebSocket onclose event");
         return this.disconnect();
       },
       error: function() {
+        ActionCable.log("WebSocket onerror event");
         return this.disconnect();
       }
     };
@@ -151,12 +194,6 @@ var ActionCable
       }
       this.disconnected = true;
       return this.consumer.subscriptions.notifyAll("disconnected");
-    };
-
-    Connection.prototype.toJSON = function() {
-      return {
-        state: this.getState()
-      };
     };
 
     return Connection;
@@ -189,7 +226,8 @@ var ActionCable
     ConnectionMonitor.prototype.connected = function() {
       this.reset();
       this.pingedAt = now();
-      return delete this.disconnectedAt;
+      delete this.disconnectedAt;
+      return ActionCable.log("ConnectionMonitor connected");
     };
 
     ConnectionMonitor.prototype.disconnected = function() {
@@ -209,12 +247,14 @@ var ActionCable
       delete this.stoppedAt;
       this.startedAt = now();
       this.poll();
-      return document.addEventListener("visibilitychange", this.visibilityDidChange);
+      document.addEventListener("visibilitychange", this.visibilityDidChange);
+      return ActionCable.log("ConnectionMonitor started, pollInterval is " + (this.getInterval()) + "ms");
     };
 
     ConnectionMonitor.prototype.stop = function() {
       this.stoppedAt = now();
-      return document.removeEventListener("visibilitychange", this.visibilityDidChange);
+      document.removeEventListener("visibilitychange", this.visibilityDidChange);
+      return ActionCable.log("ConnectionMonitor stopped");
     };
 
     ConnectionMonitor.prototype.poll = function() {
@@ -237,8 +277,12 @@ var ActionCable
 
     ConnectionMonitor.prototype.reconnectIfStale = function() {
       if (this.connectionIsStale()) {
+        ActionCable.log("ConnectionMonitor detected stale connection, reconnectAttempts = " + this.reconnectAttempts);
         this.reconnectAttempts++;
-        if (!this.disconnectedRecently()) {
+        if (this.disconnectedRecently()) {
+          return ActionCable.log("ConnectionMonitor skipping reopen because recently disconnected at " + this.disconnectedAt);
+        } else {
+          ActionCable.log("ConnectionMonitor reopening");
           return this.consumer.connection.reopen();
         }
       }
@@ -258,25 +302,12 @@ var ActionCable
         return setTimeout((function(_this) {
           return function() {
             if (_this.connectionIsStale() || !_this.consumer.connection.isOpen()) {
+              ActionCable.log("ConnectionMonitor reopening stale connection after visibilitychange to " + document.visibilityState);
               return _this.consumer.connection.reopen();
             }
           };
         })(this), 200);
       }
-    };
-
-    ConnectionMonitor.prototype.toJSON = function() {
-      var connectionIsStale, interval;
-      interval = this.getInterval();
-      connectionIsStale = this.connectionIsStale();
-      return {
-        startedAt: this.startedAt,
-        stoppedAt: this.stoppedAt,
-        pingedAt: this.pingedAt,
-        reconnectAttempts: this.reconnectAttempts,
-        connectionIsStale: connectionIsStale,
-        interval: interval
-      };
     };
 
     now = function() {
@@ -303,7 +334,6 @@ var ActionCable
     function Subscriptions(consumer) {
       this.consumer = consumer;
       this.subscriptions = [];
-      this.history = [];
     }
 
     Subscriptions.prototype.create = function(channelName, mixin) {
@@ -393,7 +423,7 @@ var ActionCable
     };
 
     Subscriptions.prototype.notify = function() {
-      var args, callbackName, i, identifier, len, results, subscription, subscriptions;
+      var args, callbackName, i, len, results, subscription, subscriptions;
       subscription = arguments[0], callbackName = arguments[1], args = 3 <= arguments.length ? slice.call(arguments, 2) : [];
       if (typeof subscription === "string") {
         subscriptions = this.findAll(subscription);
@@ -403,21 +433,7 @@ var ActionCable
       results = [];
       for (i = 0, len = subscriptions.length; i < len; i++) {
         subscription = subscriptions[i];
-        if (typeof subscription[callbackName] === "function") {
-          subscription[callbackName].apply(subscription, args);
-        }
-        if (callbackName === "initialized" || callbackName === "connected" || callbackName === "disconnected" || callbackName === "rejected") {
-          identifier = subscription.identifier;
-          results.push(this.record({
-            notification: {
-              identifier: identifier,
-              callbackName: callbackName,
-              args: args
-            }
-          }));
-        } else {
-          results.push(void 0);
-        }
+        results.push(typeof subscription[callbackName] === "function" ? subscription[callbackName].apply(subscription, args) : void 0);
       }
       return results;
     };
@@ -433,29 +449,6 @@ var ActionCable
           identifier: identifier
         });
       }
-    };
-
-    Subscriptions.prototype.record = function(data) {
-      data.time = new Date();
-      this.history = this.history.slice(-19);
-      return this.history.push(data);
-    };
-
-    Subscriptions.prototype.toJSON = function() {
-      var subscription;
-      return {
-        history: this.history,
-        identifiers: (function() {
-          var i, len, ref, results;
-          ref = this.subscriptions;
-          results = [];
-          for (i = 0, len = ref.length; i < len; i++) {
-            subscription = ref[i];
-            results.push(subscription.identifier);
-          }
-          return results;
-        }).call(this)
-      };
     };
 
     return Subscriptions;
@@ -525,19 +518,6 @@ var ActionCable
 
     Consumer.prototype.send = function(data) {
       return this.connection.send(data);
-    };
-
-    Consumer.prototype.inspect = function() {
-      return JSON.stringify(this, null, 2);
-    };
-
-    Consumer.prototype.toJSON = function() {
-      return {
-        url: this.url,
-        subscriptions: this.subscriptions,
-        connection: this.connection,
-        connectionMonitor: this.connectionMonitor
-      };
     };
 
     return Consumer;
